@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: aarch64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Validate release version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          tag_version="${TAG_NAME#v}"
+          if [[ ! "$tag_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a vMAJOR.MINOR.PATCH tag, got: $TAG_NAME" >&2
+            exit 1
+          fi
+
+          app_version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)
+          if [[ "$tag_version" != "$app_version" ]]; then
+            echo "Tag version $tag_version does not match app version $app_version" >&2
+            exit 1
+          fi
+
+      - name: Build and package app
+        run: ./scripts/build.sh
+
+      - name: Create release archive
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: ditto -c -k --sequesterRsrc --keepParent build/Concerta.app "Concerta-${ARCH}.zip"
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.arch }}
+          path: Concerta-${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Concerta $GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag
