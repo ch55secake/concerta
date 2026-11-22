@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 @MainActor
@@ -109,7 +110,21 @@ private enum PillStatusIcon {
 }
 
 private enum UptimeDisplay {
-    static func string(for uptime: TimeInterval) -> String {
+    static func compact(for uptime: TimeInterval) -> String {
+        let totalMinutes = max(Int(uptime / 60), 0)
+        let days = totalMinutes / (24 * 60)
+        let hours = totalMinutes / 60
+
+        if days > 0 {
+            return "\(days)d"
+        }
+        if hours > 0 {
+            return "\(hours)h"
+        }
+        return "\(totalMinutes)m"
+    }
+
+    static func detailed(for uptime: TimeInterval) -> String {
         let totalMinutes = max(Int(uptime / 60), 0)
         let days = totalMinutes / (24 * 60)
         let hours = (totalMinutes / 60) % 24
@@ -122,6 +137,29 @@ private enum UptimeDisplay {
             return "\(totalMinutes / 60)h \(minutes)m"
         }
         return "\(totalMinutes)m"
+    }
+}
+
+private struct StatusBarLabel: View {
+    let preventsSystemSleep: Bool
+    let keepsDisplayAwake: Bool
+
+    @State private var uptime = ProcessInfo.processInfo.systemUptime
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(nsImage: PillStatusIcon.make(
+                preventsSystemSleep: preventsSystemSleep,
+                keepsDisplayAwake: keepsDisplayAwake
+            ))
+            Text(UptimeDisplay.compact(for: uptime))
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+        }
+        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
+            uptime = ProcessInfo.processInfo.systemUptime
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Concerta. System uptime \(UptimeDisplay.detailed(for: uptime))")
     }
 }
 
@@ -141,6 +179,11 @@ struct ConcertaApp: App {
 
     var body: some Scene {
         MenuBarExtra {
+            Text("System uptime: \(UptimeDisplay.detailed(for: ProcessInfo.processInfo.systemUptime))")
+                .foregroundStyle(.secondary)
+
+            Divider()
+
             Toggle(isOn: $caffeine.preventsSystemSleep) {
                 Label("Keep Mac awake", systemImage: "moon.zzz")
             }
@@ -160,20 +203,10 @@ struct ConcertaApp: App {
                 NSApplication.shared.terminate(nil)
             }
         } label: {
-            TimelineView(.periodic(from: .now, by: 60)) { _ in
-                let uptime = UptimeDisplay.string(for: ProcessInfo.processInfo.systemUptime)
-
-                HStack(spacing: 5) {
-                    Image(nsImage: PillStatusIcon.make(
-                        preventsSystemSleep: caffeine.preventsSystemSleep,
-                        keepsDisplayAwake: caffeine.keepsDisplayAwake
-                    ))
-                    Text(uptime)
-                        .font(.system(size: 12, weight: .regular, design: .monospaced))
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Concerta. System uptime \(uptime)")
-            }
+            StatusBarLabel(
+                preventsSystemSleep: caffeine.preventsSystemSleep,
+                keepsDisplayAwake: caffeine.keepsDisplayAwake
+            )
         }
         .menuBarExtraStyle(.menu)
     }
