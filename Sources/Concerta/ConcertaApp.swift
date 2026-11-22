@@ -56,7 +56,7 @@ final class CaffeineController: ObservableObject {
 }
 
 private enum PillStatusIcon {
-    static func make(preventsSystemSleep: Bool, keepsDisplayAwake: Bool) -> NSImage {
+    static func make(active: Bool) -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18))
         image.lockFocus()
 
@@ -72,7 +72,7 @@ private enum PillStatusIcon {
             yRadius: 3.6
         )
 
-        if preventsSystemSleep || keepsDisplayAwake {
+        if active {
             let fillFraction: CGFloat = 0.5
             let inset: CGFloat = 1.1
             let fillRect = NSRect(
@@ -144,22 +144,39 @@ private struct StatusBarLabel: View {
     let preventsSystemSleep: Bool
     let keepsDisplayAwake: Bool
 
-    @State private var uptime = ProcessInfo.processInfo.systemUptime
+    @State private var statusImage: NSImage
+    @State private var uptimeText: String
+
+    init(preventsSystemSleep: Bool, keepsDisplayAwake: Bool) {
+        self.preventsSystemSleep = preventsSystemSleep
+        self.keepsDisplayAwake = keepsDisplayAwake
+        _statusImage = State(
+            initialValue: PillStatusIcon.make(active: preventsSystemSleep || keepsDisplayAwake)
+        )
+        _uptimeText = State(
+            initialValue: UptimeDisplay.compact(for: ProcessInfo.processInfo.systemUptime)
+        )
+    }
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(nsImage: PillStatusIcon.make(
-                preventsSystemSleep: preventsSystemSleep,
-                keepsDisplayAwake: keepsDisplayAwake
-            ))
-            Text(UptimeDisplay.compact(for: uptime))
+            Image(nsImage: statusImage)
+            Text(uptimeText)
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
         }
+        .fixedSize(horizontal: true, vertical: false)
+        .lineLimit(1)
+        .onChange(of: preventsSystemSleep || keepsDisplayAwake) { isActive in
+            statusImage = PillStatusIcon.make(active: isActive)
+        }
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
-            uptime = ProcessInfo.processInfo.systemUptime
+            let updatedUptime = UptimeDisplay.compact(for: ProcessInfo.processInfo.systemUptime)
+            if updatedUptime != uptimeText {
+                uptimeText = updatedUptime
+            }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Concerta. System uptime \(UptimeDisplay.detailed(for: uptime))")
+        .accessibilityLabel("Concerta. System uptime \(UptimeDisplay.detailed(for: ProcessInfo.processInfo.systemUptime))")
     }
 }
 
