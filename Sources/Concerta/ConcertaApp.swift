@@ -55,11 +55,9 @@ final class CaffeineController: ObservableObject {
 }
 
 private enum PillStatusIcon {
-    static func make(active: Bool) -> NSImage {
+    static func make(preventsSystemSleep: Bool, keepsDisplayAwake: Bool) -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18))
         image.lockFocus()
-
-        NSColor.black.setStroke()
 
         var transform = AffineTransform()
         transform.translate(x: 9, y: 9)
@@ -72,6 +70,31 @@ private enum PillStatusIcon {
             xRadius: 3.6,
             yRadius: 3.6
         )
+
+        let activeOptionCount = [preventsSystemSleep, keepsDisplayAwake]
+            .filter { $0 }
+            .count
+
+        if activeOptionCount > 0 {
+            let fillFraction: CGFloat = activeOptionCount == 1 ? 0.5 : 0.75
+            let inset: CGFloat = 1.1
+            let fillRect = NSRect(
+                x: capsuleRect.minX + inset,
+                y: capsuleRect.minY + inset,
+                width: (capsuleRect.width - 2 * inset) * fillFraction,
+                height: capsuleRect.height - 2 * inset
+            )
+            let fill = NSBezierPath(
+                roundedRect: fillRect,
+                xRadius: 2.5,
+                yRadius: 2.5
+            )
+            fill.transform(using: transform)
+            NSColor.black.setFill()
+            fill.fill()
+        }
+
+        NSColor.black.setStroke()
         capsule.lineWidth = 1.35
         capsule.transform(using: transform)
         capsule.stroke()
@@ -82,17 +105,6 @@ private enum PillStatusIcon {
         seam.lineWidth = 1.1
         seam.transform(using: transform)
         seam.stroke()
-
-        if active {
-            let sparkle = NSBezierPath()
-            sparkle.move(to: NSPoint(x: 14.5, y: 13.2))
-            sparkle.line(to: NSPoint(x: 14.5, y: 16.2))
-            sparkle.move(to: NSPoint(x: 13, y: 14.7))
-            sparkle.line(to: NSPoint(x: 16, y: 14.7))
-            sparkle.lineWidth = 1.2
-            sparkle.lineCapStyle = .round
-            sparkle.stroke()
-        }
 
         image.unlockFocus()
         image.isTemplate = true
@@ -135,7 +147,10 @@ struct ConcertaApp: App {
                 NSApplication.shared.terminate(nil)
             }
         } label: {
-            Image(nsImage: PillStatusIcon.make(active: caffeine.isActive))
+            Image(nsImage: PillStatusIcon.make(
+                preventsSystemSleep: caffeine.preventsSystemSleep,
+                keepsDisplayAwake: caffeine.keepsDisplayAwake
+            ))
                 .accessibilityLabel("Concerta")
         }
         .menuBarExtraStyle(.menu)
