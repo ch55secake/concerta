@@ -8,8 +8,7 @@ A tiny, menu-bar-only macOS app for toggling sleep prevention.
 - The release builds support both Apple silicon and Intel Macs.
 - The custom pill icon is hollow when inactive and half-filled whenever either
   or both options are enabled.
-- The menu bar shows compact system uptime beside the icon; the dropdown shows
-  detailed uptime.
+- The menu bar shows only the pill; the dropdown shows uptime since boot.
 - Concerta starts with both options off and stops `caffeinate` when you quit.
 
 The app has no Dock icon. It requires macOS 13 or later.

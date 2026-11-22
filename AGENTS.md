@@ -2,7 +2,7 @@
 
 - Concerta is a macOS 13+ SwiftUI menu-bar app. Keep it menu-bar-only and preserve `LSUIElement` so it does not appear in the Dock.
 - Keep “Keep Mac awake” (`caffeinate -i`) and “Keep display awake” (`caffeinate -d`) independent. Both should default to off, and the managed `caffeinate` process must stop when the app quits.
-- Keep the menu-bar pill hollow when both options are off and exactly half-filled when either or both are on; show compact system uptime beside it.
+- Keep the menu-bar pill hollow when both options are off and exactly half-filled when either or both are on; show system uptime since boot in the menu dropdown, not beside the pill.
 - Prefer native SwiftUI/AppKit APIs and avoid adding dependencies unless they materially help the app.
 - Build and package with `./scripts/build.sh`. Validate the app bundle with `plutil -lint Resources/Info.plist` and `codesign --verify --deep --strict build/Concerta.app`.
 - Bump `CFBundleShortVersionString` and `CFBundleVersion` in `Resources/Info.plist` for releases; merging that change to `main` automatically creates a matching `vMAJOR.MINOR.PATCH` release with Apple silicon and Intel archives.
