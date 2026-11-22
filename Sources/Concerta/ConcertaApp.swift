@@ -1,5 +1,5 @@
 import AppKit
-import Combine
+import Darwin
 import SwiftUI
 
 @MainActor
@@ -109,21 +109,25 @@ private enum PillStatusIcon {
     }
 }
 
-private enum UptimeDisplay {
-    static func compact(for uptime: TimeInterval) -> String {
-        let totalMinutes = max(Int(uptime / 60), 0)
-        let days = totalMinutes / (24 * 60)
-        let hours = totalMinutes / 60
+private enum SystemUptime {
+    private static let bootDate: Date = {
+        var bootTime = timeval()
+        var size = MemoryLayout<timeval>.size
 
-        if days > 0 {
-            return "\(days)d"
+        guard sysctlbyname("kern.boottime", &bootTime, &size, nil, 0) == 0 else {
+            return Date().addingTimeInterval(-ProcessInfo.processInfo.systemUptime)
         }
-        if hours > 0 {
-            return "\(hours)h"
-        }
-        return "\(totalMinutes)m"
+
+        let timestamp = Double(bootTime.tv_sec) + Double(bootTime.tv_usec) / 1_000_000
+        return Date(timeIntervalSince1970: timestamp)
+    }()
+
+    static var elapsed: TimeInterval {
+        max(Date().timeIntervalSince(bootDate), 0)
     }
+}
 
+private enum UptimeDisplay {
     static func detailed(for uptime: TimeInterval) -> String {
         let totalMinutes = max(Int(uptime / 60), 0)
         let days = totalMinutes / (24 * 60)
@@ -131,7 +135,7 @@ private enum UptimeDisplay {
         let minutes = totalMinutes % 60
 
         if days > 0 {
-            return "\(days)d \(hours)h"
+            return "\(days)d \(hours)h \(minutes)m"
         }
         if totalMinutes >= 60 {
             return "\(totalMinutes / 60)h \(minutes)m"
@@ -145,7 +149,6 @@ private struct StatusBarLabel: View {
     let keepsDisplayAwake: Bool
 
     @State private var statusImage: NSImage
-    @State private var uptimeText: String
 
     init(preventsSystemSleep: Bool, keepsDisplayAwake: Bool) {
         self.preventsSystemSleep = preventsSystemSleep
@@ -153,30 +156,15 @@ private struct StatusBarLabel: View {
         _statusImage = State(
             initialValue: PillStatusIcon.make(active: preventsSystemSleep || keepsDisplayAwake)
         )
-        _uptimeText = State(
-            initialValue: UptimeDisplay.compact(for: ProcessInfo.processInfo.systemUptime)
-        )
     }
 
     var body: some View {
-        HStack(spacing: 4) {
-            Image(nsImage: statusImage)
-            Text(uptimeText)
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-        }
-        .fixedSize(horizontal: true, vertical: false)
-        .lineLimit(1)
+        Image(nsImage: statusImage)
         .onChange(of: preventsSystemSleep || keepsDisplayAwake) { isActive in
             statusImage = PillStatusIcon.make(active: isActive)
         }
-        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
-            let updatedUptime = UptimeDisplay.compact(for: ProcessInfo.processInfo.systemUptime)
-            if updatedUptime != uptimeText {
-                uptimeText = updatedUptime
-            }
-        }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Concerta. System uptime \(UptimeDisplay.detailed(for: ProcessInfo.processInfo.systemUptime))")
+        .accessibilityLabel("Concerta")
     }
 }
 
@@ -196,7 +184,7 @@ struct ConcertaApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            Text("System uptime: \(UptimeDisplay.detailed(for: ProcessInfo.processInfo.systemUptime))")
+            Text("System uptime: \(UptimeDisplay.detailed(for: SystemUptime.elapsed))")
                 .foregroundStyle(.secondary)
 
             Divider()
