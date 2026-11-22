@@ -39,7 +39,7 @@ This installs the app in `~/Applications/Concerta.app` and opens it.
 
 ## Releases
 
-To publish a release, update `CFBundleShortVersionString` in
-`Resources/Info.plist` and push a matching `vMAJOR.MINOR.PATCH` tag. GitHub
-Actions builds architecture-specific app archives and publishes them as a
-GitHub Release.
+To publish a release, update `CFBundleShortVersionString` and `CFBundleVersion`
+in `Resources/Info.plist` and merge the change to `main`. GitHub Actions
+automatically creates the matching `vMAJOR.MINOR.PATCH` tag, builds
+architecture-specific app archives, and publishes the GitHub Release.
