@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build app
+    runs-on: macos-14
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build and package
+        run: ./scripts/build.sh
+
+      - name: Validate app bundle
+        run: |
+          plutil -lint Resources/Info.plist
+          codesign --verify --deep --strict build/Concerta.app
