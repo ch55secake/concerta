@@ -6,8 +6,9 @@ A tiny, menu-bar-only macOS app for toggling sleep prevention.
 - **Keep display awake** prevents display idle sleep (`caffeinate -d`).
 - The two options can be toggled independently or together.
 - The release builds support both Apple silicon and Intel Macs.
-- The custom pill icon is hollow when inactive and partly filled when either
-  option is on; it fills further when both are enabled.
+- The custom pill icon is hollow when inactive and half-filled whenever either
+  or both options are enabled.
+- The menu bar shows compact system uptime beside the icon.
 - Concerta starts with both options off and stops `caffeinate` when you quit.
 
 The app has no Dock icon. It requires macOS 13 or later.

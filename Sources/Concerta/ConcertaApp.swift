@@ -71,12 +71,8 @@ private enum PillStatusIcon {
             yRadius: 3.6
         )
 
-        let activeOptionCount = [preventsSystemSleep, keepsDisplayAwake]
-            .filter { $0 }
-            .count
-
-        if activeOptionCount > 0 {
-            let fillFraction: CGFloat = activeOptionCount == 1 ? 0.5 : 0.75
+        if preventsSystemSleep || keepsDisplayAwake {
+            let fillFraction: CGFloat = 0.5
             let inset: CGFloat = 1.1
             let fillRect = NSRect(
                 x: capsuleRect.minX + inset,
@@ -109,6 +105,23 @@ private enum PillStatusIcon {
         image.unlockFocus()
         image.isTemplate = true
         return image
+    }
+}
+
+private enum UptimeDisplay {
+    static func string(for uptime: TimeInterval) -> String {
+        let totalMinutes = max(Int(uptime / 60), 0)
+        let days = totalMinutes / (24 * 60)
+        let hours = (totalMinutes / 60) % 24
+        let minutes = totalMinutes % 60
+
+        if days > 0 {
+            return "\(days)d \(hours)h"
+        }
+        if totalMinutes >= 60 {
+            return "\(totalMinutes / 60)h \(minutes)m"
+        }
+        return "\(totalMinutes)m"
     }
 }
 
@@ -147,11 +160,20 @@ struct ConcertaApp: App {
                 NSApplication.shared.terminate(nil)
             }
         } label: {
-            Image(nsImage: PillStatusIcon.make(
-                preventsSystemSleep: caffeine.preventsSystemSleep,
-                keepsDisplayAwake: caffeine.keepsDisplayAwake
-            ))
-                .accessibilityLabel("Concerta")
+            TimelineView(.periodic(from: .now, by: 60)) { _ in
+                let uptime = UptimeDisplay.string(for: ProcessInfo.processInfo.systemUptime)
+
+                HStack(spacing: 5) {
+                    Image(nsImage: PillStatusIcon.make(
+                        preventsSystemSleep: caffeine.preventsSystemSleep,
+                        keepsDisplayAwake: caffeine.keepsDisplayAwake
+                    ))
+                    Text(uptime)
+                        .font(.system(size: 12, weight: .regular, design: .monospaced))
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Concerta. System uptime \(uptime)")
+            }
         }
         .menuBarExtraStyle(.menu)
     }
